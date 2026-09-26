@@ -1,3 +1,7 @@
 .wrangler/
 dist/
 migrations.zip
+.env
+.env.*
+.dev.vars
+.dev.vars.*
