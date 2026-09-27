@@ -33,6 +33,16 @@ function json(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8" } });
 }
 
+function cookieLanguage(request) {
+  const cookie = request.headers.get("cookie") || "";
+  const match = cookie.match(/(?:^|;\s*)agz-store-language=([^;]+)/i);
+  return match ? decodeURIComponent(match[1]) : "";
+}
+
+function requestLanguage(request, url) {
+  return url.searchParams.get("lang") || cookieLanguage(request) || request.headers.get("accept-language") || "en";
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -69,20 +79,20 @@ export default {
     if (url.pathname === "/api/checkout" || url.pathname.startsWith("/api/checkout/")) { try { const response = await handleCheckout(request, env, url.pathname); if (response) return response; } catch { return json({ ok: false, error: "checkout_service_unavailable" }, 503); } }
     if (url.pathname === "/api/orders" || url.pathname.startsWith("/api/orders/")) { try { const response = await handleOrders(request, env, url.pathname); if (response) return response; } catch { return json({ ok: false, error: "order_service_unavailable" }, 503); } }
     if (url.pathname.startsWith("/api/b2b-orders/")) { try { const response = await handleB2BOrders(request, env, url.pathname); if (response) return response; } catch { return json({ ok: false, error: "b2b_order_service_unavailable" }, 503); } }
-    if (request.method === "GET" && (url.pathname === "/products" || /^\/products\/[^/]+$/.test(url.pathname))) return withStoreLanguageRuntime(productsSiteResponse(url.pathname, resolveStoreLanguage(url.searchParams.get("lang") || request.headers.get("accept-language"))));
-    if (request.method === "GET" && (url.pathname === "/suppliers" || url.pathname.startsWith("/suppliers/"))) return withStoreLanguageRuntime(suppliersLiveResponse(url.pathname, resolveStoreLanguage(url.searchParams.get("lang") || request.headers.get("accept-language"))));
-    if (request.method === "GET" && (url.pathname === "/rfq" || url.pathname === "/rfq/review")) return withStoreLanguageRuntime(rfqLiveSiteResponse(url.pathname, resolveStoreLanguage(url.searchParams.get("lang") || request.headers.get("accept-language"))));
+    if (request.method === "GET" && (url.pathname === "/products" || /^\/products\/[^/]+$/.test(url.pathname))) return withStoreLanguageRuntime(productsSiteResponse(url.pathname, resolveStoreLanguage(requestLanguage(request, url))), resolveStoreLanguage(requestLanguage(request, url)));
+    if (request.method === "GET" && (url.pathname === "/suppliers" || url.pathname.startsWith("/suppliers/"))) return withStoreLanguageRuntime(suppliersLiveResponse(url.pathname, resolveStoreLanguage(requestLanguage(request, url))), resolveStoreLanguage(requestLanguage(request, url)));
+    if (request.method === "GET" && (url.pathname === "/rfq" || url.pathname === "/rfq/review")) return withStoreLanguageRuntime(rfqLiveSiteResponse(url.pathname, resolveStoreLanguage(requestLanguage(request, url))), resolveStoreLanguage(requestLanguage(request, url)));
     if (request.method === "GET" && url.pathname === "/admin/matches") return adminMatchesLiveResponse();
     if (request.method === "GET" && url.pathname === "/account/quotes") return accountQuotesLiveResponse();
-    if (request.method === "GET" && (url.pathname === "/account/login" || url.pathname === "/account/register")) return withStoreLanguageRuntime(customerAuthSiteResponse(url.pathname, resolveStoreLanguage(url.searchParams.get("lang") || request.headers.get("accept-language"))));
+    if (request.method === "GET" && (url.pathname === "/account/login" || url.pathname === "/account/register")) return withStoreLanguageRuntime(customerAuthSiteResponse(url.pathname, resolveStoreLanguage(requestLanguage(request, url))), resolveStoreLanguage(requestLanguage(request, url)));
     if (request.method === "GET" && url.pathname === "/account/rfqs") return accountRfqsLiveResponse();
-    if (request.method === "GET" && url.pathname === "/cart") return withStoreLanguageRuntime(cartSiteResponse(url.pathname, resolveStoreLanguage(url.searchParams.get("lang") || request.headers.get("accept-language"))));
-    if (request.method === "GET" && (url.pathname === "/checkout" || url.pathname === "/checkout/review" || url.pathname === "/checkout/confirmation")) return withStoreLanguageRuntime(checkoutSiteResponse(url.pathname, resolveStoreLanguage(url.searchParams.get("lang") || request.headers.get("accept-language"))));
-    if (request.method === "GET" && url.pathname === "/orders") return withStoreLanguageRuntime(ordersLiveResponse(url.pathname, resolveStoreLanguage(url.searchParams.get("lang") || request.headers.get("accept-language"))));
-    if (request.method === "GET" && url.pathname === "/account/orders") return withStoreLanguageRuntime(ordersLiveResponse(url.pathname, resolveStoreLanguage(url.searchParams.get("lang") || request.headers.get("accept-language"))));
+    if (request.method === "GET" && url.pathname === "/cart") return withStoreLanguageRuntime(cartSiteResponse(url.pathname, resolveStoreLanguage(requestLanguage(request, url))), resolveStoreLanguage(requestLanguage(request, url)));
+    if (request.method === "GET" && (url.pathname === "/checkout" || url.pathname === "/checkout/review" || url.pathname === "/checkout/confirmation")) return withStoreLanguageRuntime(checkoutSiteResponse(url.pathname, resolveStoreLanguage(requestLanguage(request, url))), resolveStoreLanguage(requestLanguage(request, url)));
+    if (request.method === "GET" && url.pathname === "/orders") return withStoreLanguageRuntime(ordersLiveResponse(url.pathname, resolveStoreLanguage(requestLanguage(request, url))), resolveStoreLanguage(requestLanguage(request, url)));
+    if (request.method === "GET" && url.pathname === "/account/orders") return withStoreLanguageRuntime(ordersLiveResponse(url.pathname, resolveStoreLanguage(requestLanguage(request, url))), resolveStoreLanguage(requestLanguage(request, url)));
     if (request.method === "GET" && (url.pathname === "/account" || url.pathname.startsWith("/account/"))) return accountSiteResponse(url.pathname);
     if (request.method === "GET" && (url.pathname === "/admin" || url.pathname.startsWith("/admin/"))) return adminSiteResponse(url.pathname, request, env);
-    if (request.method === "GET" && !url.pathname.startsWith("/api/")) return withStoreLanguageRuntime(siteResponse(url.pathname, resolveStoreLanguage(url.searchParams.get("lang") || request.headers.get("accept-language"))));
+    if (request.method === "GET" && !url.pathname.startsWith("/api/")) { const language = resolveStoreLanguage(requestLanguage(request, url)); return withStoreLanguageRuntime(siteResponse(url.pathname, language), language); }
     return new Response("Not Found", { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
   }
 };
