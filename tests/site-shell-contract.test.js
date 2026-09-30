@@ -1,39 +1,76 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { storeSiteShell } from "../src/site/store-site-shell.js";
+import { productsSiteResponse } from "../src/site/products-live-response.js";
 
-test("site shell exposes core navigation and home structure", () => {
-  const html = storeSiteShell("/");
-  for (const label of ["AGRO-ZIA", "Products", "Suppliers", "RFQ / Request", "Orders", "About", "Contact", "Customer / Login", "Agricultural Solutions Beyond Borders."]) {
-    assert.match(html, new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+test("Store home exposes the independent commerce structure", () => {
+  const html = storeSiteShell("/", "en");
+
+  for (const label of [
+    "AGRO-ZIA STORE",
+    "AGRICULTURAL MARKETPLACE",
+    "Products",
+    "Suppliers",
+    "Request a Quote",
+    "Orders",
+    "My Account",
+    "Cart"
+  ]) {
+    assert.match(
+      html,
+      new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    );
   }
+
   assert.match(html, /class="hero"/);
-  assert.match(html, /class="site-header"/);
-  assert.match(html, /class="cta"/);
+  assert.match(html, /class="store-header"/);
+  assert.match(html, /class="hero-actions"/);
+
+  assert.doesNotMatch(html, /Agricultural Solutions Beyond Borders/);
+  assert.doesNotMatch(html, />About</);
+  assert.doesNotMatch(html, />Knowledge</);
 });
 
-test("site shell supports the planned primary pages", () => {
-  for (const path of ["/products", "/suppliers", "/rfq", "/cart", "/checkout", "/orders", "/account", "/about", "/contact", "/knowledge"]) {
-    const html = storeSiteShell(path);
+test("Store shell supports the planned primary routes", () => {
+  for (const path of [
+    "/products",
+    "/suppliers",
+    "/rfq",
+    "/cart",
+    "/checkout",
+    "/orders",
+    "/account",
+    "/about",
+    "/contact",
+    "/knowledge"
+  ]) {
+    const html = storeSiteShell(path, "en");
+
     assert.match(html, /<title>/);
-    assert.match(html, /site-header/);
-    assert.match(html, /footer/);
+    assert.match(html, /class="store-header"/);
+    assert.match(html, /<footer/);
   }
 });
 
-test("products page exposes catalog structure and product cards", () => {
-  const html = storeSiteShell("/products");
-  assert.match(html, /Agricultural Products|Solutions organized around agricultural needs\./);
-  assert.match(html, /NPK Fertilizer/);
-  assert.match(html, /href="\/products\/1"/);
-  assert.match(html, /href="\/rfq"/);
+test("Products route is wired to the live Store Product API", async () => {
+  const response = productsSiteResponse("/products", "en");
+  assert.equal(response.status, 200);
+
+  const html = await response.text();
+
+  assert.match(html, /data-live-products/);
+  assert.match(html, /const endpoint='\/api\/products\?limit='\+limit/);
+  assert.match(html, /Source: Store Product API/);
+  assert.match(html, /No sample catalog data is presented as live inventory/);
 });
 
-test("product detail route exposes technical and commercial structure", () => {
-  const html = storeSiteShell("/products/1");
-  assert.match(html, /NPK Fertilizer/);
-  assert.match(html, /Specification/);
-  assert.match(html, /Commercial terms/);
-  assert.match(html, /Add to Cart/);
-  assert.match(html, /Request a Quote/);
+test("Product detail route is wired to a published product slug", async () => {
+  const response = productsSiteResponse("/products/example-product", "en");
+  assert.equal(response.status, 200);
+
+  const html = await response.text();
+
+  assert.match(html, /data-live-product/);
+  assert.match(html, /\/api\/products\//);
+  assert.match(html, /Product not found/);
 });

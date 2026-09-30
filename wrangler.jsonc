@@ -15,7 +15,7 @@
   "r2_buckets": [
     {
       "binding": "STORE_ATTACHMENTS",
-      "bucket_name": "agro-zia-store-attachments"
+      "bucket_name": "agrozia-store-attachments"
     }
   ],
   "previews": {}
