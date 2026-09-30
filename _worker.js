@@ -4,6 +4,7 @@ import { handleStoreAdminProducts } from "./src/commerce/store-admin-product-api
 import { handleStoreAdminSuppliers } from "./src/commerce/store-admin-supplier-api.js";
 import { handleStoreAdminMatches } from "./src/commerce/store-admin-match-api.js";
 import { handleStoreAdminQuotes } from "./src/commerce/store-admin-quote-api.js";
+import { handleStoreAdminProductMedia } from "./src/commerce/store-admin-product-media-api.js";
 import { handleCustomerQuotes } from "./src/commerce/customer-quote-api.js";
 import { handlePublicProducts } from "./src/commerce/product-api.js";
 import { handlePublicSuppliers } from "./src/commerce/supplier-public-api.js";
@@ -28,6 +29,7 @@ import { accountRfqsLiveResponse } from "./src/site/account-rfqs-live-response.j
 import { accountSiteResponse } from "./src/site/account-site-shell.js";
 import { customerAuthSiteResponse } from "./src/site/customer-auth-site-response.js";
 import { adminSiteResponse } from "./src/site/admin-site-shell.js";
+import { productMediaRuntime } from "./src/commerce/product-media-runtime.js";
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8" } });
@@ -46,6 +48,16 @@ function requestLanguage(request, url) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (request.method === "GET" || request.method === "HEAD") {
+      if (url.pathname.startsWith("/media/")) {
+        try {
+          const mediaResponse = await productMediaRuntime(request, env, url.pathname);
+          if (mediaResponse) return mediaResponse;
+        } catch {
+          return new Response("Media service unavailable", { status: 503 });
+        }
+      }
+    }
     if (url.pathname === "/health") {
       let db = "not_checked";
       try { await env.STORE_DB.prepare("SELECT 1 AS ok").first(); db = "ok"; } catch { db = "unavailable"; }
@@ -62,6 +74,7 @@ export default {
         const supplierResponse = await handleStoreAdminSuppliers(request, env, url.pathname); if (supplierResponse) return supplierResponse;
         const matchResponse = await handleStoreAdminMatches(request, env, url.pathname); if (matchResponse) return matchResponse;
         const quoteResponse = await handleStoreAdminQuotes(request, env, url.pathname); if (quoteResponse) return quoteResponse;
+        const mediaResponse = await handleStoreAdminProductMedia(request, env, url.pathname); if (mediaResponse) return mediaResponse;
       } catch { return json({ ok: false, error: "store_admin_service_unavailable" }, 503); }
     }
     if (url.pathname.startsWith("/api/customer/") && url.pathname !== "/api/customer/rfqs" && !url.pathname.startsWith("/api/customer/quotes")) {

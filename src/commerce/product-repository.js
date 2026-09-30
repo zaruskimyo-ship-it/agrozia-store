@@ -1,4 +1,5 @@
 import { publicProduct } from "./product-contract.js";
+import { listProductMedia, listProductMediaByProductIds, publicProductMedia } from "./product-media-repository.js";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
@@ -10,14 +11,29 @@ function clampLimit(value) {
   return Math.min(MAX_LIMIT, Math.max(1, parsed));
 }
 function cleanSearch(value) { return String(value || "").trim().slice(0, MAX_SEARCH); }
-function mapRow(row) {
+async function mapRow(db, row, mediaByProduct = null) {
   if (!row) return null;
+
   let specifications = {};
   try {
     const parsed = JSON.parse(row.specifications_json || "{}");
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) specifications = parsed;
   } catch (_) {}
-  return publicProduct({ ...row, specifications });
+
+  const product = publicProduct({ ...row, specifications });
+  if (!product) return null;
+
+  const media = mediaByProduct instanceof Map
+    ? (mediaByProduct.get(row.id) || [])
+    : await listProductMedia(db, row.id);
+
+  return {
+    ...product,
+    media: {
+      images: media.filter((item) => item.media_type === "image").map(publicProductMedia),
+      videos: media.filter((item) => item.media_type === "video").map(publicProductMedia)
+    }
+  };
 }
 
 export async function listPublicProducts(db, params = {}) {
@@ -44,7 +60,18 @@ const category = String(params.category || "").trim().slice(0, 120);
     availability_status, lead_time, price_visibility, currency, price_min, price_max, supply_capacity, incoterms,
     short_description, description, specifications_json, packaging, application, verification_level, verification_updated_at
     FROM commerce_products${where} ORDER BY published_at DESC, created_at DESC LIMIT ? OFFSET ?`).bind(...values, limit, offset).all();
-  return { items: (rows?.results || []).map(mapRow).filter(Boolean), pagination: { limit, offset, total: Number(count?.total || 0) } };
+  const productRows = rows?.results || [];
+  const mediaByProduct = await listProductMediaByProductIds(
+    db,
+    productRows.map((row) => row.id)
+  );
+
+  return {
+    items: (await Promise.all(
+      productRows.map((row) => mapRow(db, row, mediaByProduct))
+    )).filter(Boolean),
+    pagination: { limit, offset, total: Number(count?.total || 0) }
+  };
 }
 
 export async function getPublicProductBySlug(db, slug) {
@@ -55,7 +82,7 @@ export async function getPublicProductBySlug(db, slug) {
     availability_status, lead_time, price_visibility, currency, price_min, price_max, supply_capacity, incoterms,
     short_description, description, specifications_json, packaging, application, verification_level, verification_updated_at
     FROM commerce_products WHERE slug = ? AND status = 'published' LIMIT 1`).bind(normalizedSlug).first();
-  return mapRow(row);
+  return mapRow(db, row);
 }
 
 export async function listPublicCategories(db) {
