@@ -12,6 +12,12 @@ const product=document.querySelector('#product');
 const productId=document.querySelector('#product_id');
 const review=document.querySelector('#review');
 const statusBox=document.querySelector('#status');
+const searchParams=new URLSearchParams(location.search);
+const requestedProduct=(searchParams.get('search')||'').trim();
+if(requestedProduct){
+  const productName=document.querySelector('#product_name');
+  if(productName)productName.value=requestedProduct;
+}
 function show(el,text,kind='notice'){el.className='notice '+kind;el.textContent=text;el.hidden=false}
 function hide(el){el.hidden=true}
 async function loadProducts(){

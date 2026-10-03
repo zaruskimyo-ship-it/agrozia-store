@@ -260,7 +260,7 @@ function listingScript() {
 
       grid.innerHTML=items.length
         ? items.map(card).join('')
-        : '<div class="card" data-products-state="empty"><span class="status">LIVE CATALOG</span><h3>No products found</h3><p>No published products match the current search.</p><a class="button secondary" href="/products">Clear search</a></div>';
+        : '<div class="card" data-products-state="empty"><span class="status">LIVE CATALOG</span><h3>No products found</h3><p>No published products match the current search.</p><a class="button secondary" href="/rfq?search='+encodeURIComponent(search)+'&lang='+encodeURIComponent(document.documentElement.lang||"en")+'">Request an RFQ</a></div>';
 
       renderToolbar(pagination,total);
       renderPagination(pagination,total);loadCategories();
